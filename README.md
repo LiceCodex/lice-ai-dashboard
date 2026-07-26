@@ -4,7 +4,7 @@
 AI 服务的网络状态。
 
 ![Windows](https://img.shields.io/badge/Windows-10%2F11-0078D4)
-![Version](https://img.shields.io/badge/version-1.1-7C8CFF)
+![Version](https://img.shields.io/badge/version-1.3-6F97FF)
 ![Runtime](https://img.shields.io/badge/runtime-.NET%20Framework-512BD4)
 
 ## 功能
@@ -12,6 +12,8 @@ AI 服务的网络状态。
 - 显示 Codex 周额度和刷新时间
 - 显示 VPN/代理出口、实际 HTTPS 延迟、节点历史与服务状态
 - 显示 IP 纯净度评分、风险原因，以及是否推荐用于 AI
+- 原创 iOS 26 方向玻璃视觉：渐变光晕、半透明层次、圆角玻璃卡片
+- 网络节点卡片支持手动刷新；切换节点后可立即重新识别出口、延迟与纯净度
 - 设置中可手动开启或关闭“登录 Windows 后自动启动”
 - 鼠标移动到右下角托盘图标时自动展开，移开窗口后自动收起
 - 左键单击托盘图标可固定打开/收起
