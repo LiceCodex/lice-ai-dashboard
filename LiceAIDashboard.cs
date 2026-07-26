@@ -80,13 +80,13 @@ namespace LiceAIDashboard
 
         public GlassPanel()
         {
-            Radius = 22;
-            GlassTop = Color.FromArgb(178, 35, 43, 66);
-            GlassBottom = Color.FromArgb(166, 20, 25, 42);
-            BorderColor = Color.FromArgb(88, 255, 255, 255);
+            Radius = 10;
+            GlassTop = Color.FromArgb(31, 35, 43);
+            GlassBottom = Color.FromArgb(31, 35, 43);
+            BorderColor = Color.FromArgb(62, 68, 80);
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
-                ControlStyles.OptimizedDoubleBuffer | ControlStyles.SupportsTransparentBackColor, true);
-            BackColor = Color.Transparent;
+                ControlStyles.OptimizedDoubleBuffer, true);
+            BackColor = GlassTop;
         }
 
         protected override void OnSizeChanged(EventArgs e)
@@ -101,13 +101,8 @@ namespace LiceAIDashboard
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             var rect = new Rectangle(0, 0, Math.Max(1, Width - 1), Math.Max(1, Height - 1));
             using (var path = RoundedPath(rect, Radius))
-            using (var brush = new LinearGradientBrush(rect, GlassTop, GlassBottom, 115F))
+            using (var brush = new SolidBrush(GlassTop))
                 e.Graphics.FillPath(brush, path);
-            using (var glow = new LinearGradientBrush(
-                new Rectangle(0, 0, Math.Max(1, Width), Math.Max(1, Height / 2)),
-                Color.FromArgb(48, 255, 255, 255), Color.FromArgb(0, 255, 255, 255), 90F))
-            using (var path = RoundedPath(rect, Radius))
-                e.Graphics.FillPath(glow, path);
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -142,7 +137,7 @@ namespace LiceAIDashboard
 
         public GlassButton()
         {
-            Radius = 15;
+            Radius = 6;
             FlatStyle = FlatStyle.Flat;
             FlatAppearance.BorderSize = 0;
             Cursor = Cursors.Hand;
@@ -156,10 +151,9 @@ namespace LiceAIDashboard
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             var rect = new Rectangle(0, 0, Width - 1, Height - 1);
             using (var path = GlassPanel.RoundedPath(rect, Radius))
-            using (var brush = new LinearGradientBrush(rect,
-                Enabled ? Color.FromArgb(95, 255, 255, 255) : Color.FromArgb(35, 255, 255, 255),
-                Enabled ? Color.FromArgb(44, 255, 255, 255) : Color.FromArgb(22, 255, 255, 255), 90F))
-            using (var pen = new Pen(Color.FromArgb(96, 255, 255, 255)))
+            using (var brush = new SolidBrush(
+                Enabled ? Color.FromArgb(48, 54, 66) : Color.FromArgb(38, 42, 50)))
+            using (var pen = new Pen(Color.FromArgb(72, 79, 92)))
             {
                 e.Graphics.FillPath(brush, path);
                 e.Graphics.DrawPath(pen, path);
@@ -173,15 +167,15 @@ namespace LiceAIDashboard
 
     internal sealed class DashboardForm : Form
     {
-        private static readonly Color Bg = Color.FromArgb(8, 12, 27);
-        private static readonly Color Card = Color.FromArgb(28, 35, 56);
-        private static readonly Color TextColor = Color.FromArgb(248, 250, 255);
-        private static readonly Color Muted = Color.FromArgb(169, 180, 205);
-        private static readonly Color Green = Color.FromArgb(92, 238, 180);
-        private static readonly Color Yellow = Color.FromArgb(255, 211, 112);
-        private static readonly Color Red = Color.FromArgb(255, 118, 144);
-        private static readonly Color Accent = Color.FromArgb(111, 151, 255);
-        private static readonly Color Cyan = Color.FromArgb(91, 224, 255);
+        private static readonly Color Bg = Color.FromArgb(18, 20, 24);
+        private static readonly Color Card = Color.FromArgb(31, 35, 43);
+        private static readonly Color TextColor = Color.FromArgb(243, 245, 248);
+        private static readonly Color Muted = Color.FromArgb(155, 164, 180);
+        private static readonly Color Green = Color.FromArgb(63, 201, 128);
+        private static readonly Color Yellow = Color.FromArgb(246, 190, 76);
+        private static readonly Color Red = Color.FromArgb(239, 93, 108);
+        private static readonly Color Accent = Color.FromArgb(76, 141, 255);
+        private static readonly Color Cyan = Color.FromArgb(94, 168, 255);
 
         private readonly string appDir;
         private readonly string configPath;
@@ -303,33 +297,26 @@ namespace LiceAIDashboard
 
         protected override void OnPaint(PaintEventArgs e)
         {
-            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-            using (var background = new LinearGradientBrush(
-                ClientRectangle, Color.FromArgb(17, 25, 54), Color.FromArgb(7, 10, 23), 125F))
-                e.Graphics.FillRectangle(background, ClientRectangle);
-            using (var blueGlow = new SolidBrush(Color.FromArgb(48, 81, 128, 255)))
-                e.Graphics.FillEllipse(blueGlow, Width - 245, -135, 330, 300);
-            using (var cyanGlow = new SolidBrush(Color.FromArgb(30, 73, 228, 218)))
-                e.Graphics.FillEllipse(cyanGlow, -165, Height - 250, 310, 300);
-            using (var border = new Pen(Color.FromArgb(82, 255, 255, 255)))
+            e.Graphics.Clear(Bg);
+            using (var border = new Pen(Color.FromArgb(57, 62, 72)))
                 e.Graphics.DrawRectangle(border, 0, 0, Width - 1, Height - 1);
             base.OnPaint(e);
         }
 
         private void BuildUi()
         {
-            var header = new Panel { Dock = DockStyle.Top, Height = 68, BackColor = Color.Transparent };
+            var header = new Panel { Dock = DockStyle.Top, Height = 68, BackColor = Bg };
             Controls.Add(header);
             var logo = new PictureBox
             {
                 Image = BuildLogo(36),
                 SizeMode = PictureBoxSizeMode.StretchImage,
                 Bounds = new Rectangle(16, 16, 36, 36),
-                BackColor = Color.Transparent
+                BackColor = Bg
             };
             header.Controls.Add(logo);
             header.Controls.Add(NewLabel("Lice AI Dashboard", 60, 14, 215, 26, 16, true, TextColor));
-            header.Controls.Add(NewLabel("AI & NETWORK GLASS", 61, 38, 190, 16, 7.5F, false, Cyan));
+            header.Controls.Add(NewLabel("Windows 桌面状态中心", 61, 38, 190, 16, 7.5F, false, Muted));
 
             var settingsButton = NewButton("设置", 288, 18, 54, 32);
             settingsButton.Click += delegate { settingsPanel.Visible = !settingsPanel.Visible; };
@@ -338,12 +325,14 @@ namespace LiceAIDashboard
             hideButton.Click += delegate { HideToTray(); };
             header.Controls.Add(hideButton);
 
-            var body = new Panel
+            var body = new FlowLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 AutoScroll = true,
                 Padding = new Padding(14, 3, 14, 10),
-                BackColor = Color.Transparent
+                BackColor = Bg,
+                FlowDirection = FlowDirection.TopDown,
+                WrapContents = false
             };
             Controls.Add(body);
             body.BringToFront();
@@ -355,7 +344,7 @@ namespace LiceAIDashboard
             {
                 Text = "登录 Windows 后自动启动",
                 ForeColor = TextColor,
-                BackColor = Color.Transparent,
+                BackColor = Card,
                 AutoSize = true,
                 Location = new Point(20, 45),
                 Checked = IsAutoStartEnabled()
@@ -369,10 +358,9 @@ namespace LiceAIDashboard
             settingsPanel.Controls.Add(autoStartToggle);
             settingsPanel.Controls.Add(NewLabel("托盘悬停展开，移开后自动收起", 20, 74, 310, 20, 9, false, Muted));
             body.Controls.Add(settingsPanel);
-            settingsPanel.Dock = DockStyle.Top;
 
             var weekly = NewCard(126);
-            weekly.Controls.Add(NewLabel("CODEX · 周额度", 18, 13, 240, 24, 10.5F, true, TextColor));
+            weekly.Controls.Add(NewLabel("Codex 周额度", 18, 13, 240, 24, 10.5F, true, TextColor));
             weeklyValue = NewLabel("正在读取…", 18, 42, 320, 32, 22, true, TextColor);
             weekly.Controls.Add(weeklyValue);
             var barBg = new Panel { BackColor = Color.FromArgb(62, 75, 105), Bounds = new Rectangle(18, 82, 346, 7) };
@@ -382,10 +370,9 @@ namespace LiceAIDashboard
             weeklyMeta = NewLabel("刷新时间未知", 18, 96, 346, 20, 8.5F, false, Muted);
             weekly.Controls.Add(weeklyMeta);
             body.Controls.Add(weekly);
-            weekly.Dock = DockStyle.Top;
 
             var vpn = NewCard(264);
-            vpn.Controls.Add(NewLabel("NETWORK · 网络节点", 18, 13, 230, 24, 10.5F, true, TextColor));
+            vpn.Controls.Add(NewLabel("VPN / 网络节点", 18, 13, 230, 24, 10.5F, true, TextColor));
             networkRefreshButton = NewButton("↻  刷新节点", 268, 10, 96, 32);
             networkRefreshButton.Click += async delegate { await RefreshNetworkData(true); };
             vpn.Controls.Add(networkRefreshButton);
@@ -404,20 +391,14 @@ namespace LiceAIDashboard
             vpnHistory.AutoEllipsis = true;
             vpn.Controls.Add(vpnHistory);
             body.Controls.Add(vpn);
-            vpn.Dock = DockStyle.Top;
 
             var health = NewCard(126);
-            health.Controls.Add(NewLabel("SERVICES · 服务状态", 18, 13, 260, 24, 10.5F, true, TextColor));
+            health.Controls.Add(NewLabel("服务状态", 18, 13, 260, 24, 10.5F, true, TextColor));
             healthMeta = NewLabel("正在检测…", 18, 43, 346, 72, 9, false, Muted);
             health.Controls.Add(healthMeta);
             body.Controls.Add(health);
-            health.Dock = DockStyle.Top;
-            body.Controls.SetChildIndex(settingsPanel, 0);
-            body.Controls.SetChildIndex(weekly, 1);
-            body.Controls.SetChildIndex(vpn, 2);
-            body.Controls.SetChildIndex(health, 3);
 
-            var footer = new Panel { Dock = DockStyle.Bottom, Height = 32, BackColor = Color.Transparent };
+            var footer = new Panel { Dock = DockStyle.Bottom, Height = 32, BackColor = Bg };
             updated = NewLabel("", 18, 7, 250, 18, 8, false, Muted);
             footer.Controls.Add(updated);
             Controls.Add(footer);
@@ -429,7 +410,8 @@ namespace LiceAIDashboard
             return new GlassPanel
             {
                 Height = height,
-                Dock = DockStyle.Top,
+                Width = 366,
+                Dock = DockStyle.None,
                 Margin = new Padding(0, 0, 0, 12),
                 Padding = new Padding(0)
             };
@@ -442,7 +424,7 @@ namespace LiceAIDashboard
                 Text = text,
                 Bounds = new Rectangle(x, y, w, h),
                 ForeColor = color,
-                BackColor = Color.Transparent,
+                BackColor = Color.FromArgb(48, 54, 66),
                 Font = new Font("Microsoft YaHei UI", size, bold ? FontStyle.Bold : FontStyle.Regular),
                 TextAlign = ContentAlignment.MiddleLeft
             };
