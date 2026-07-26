@@ -17,8 +17,8 @@ using Microsoft.Win32;
 [assembly: System.Reflection.AssemblyDescription("Codex usage and network tray dashboard")]
 [assembly: System.Reflection.AssemblyCompany("Lice")]
 [assembly: System.Reflection.AssemblyProduct("Lice AI Dashboard")]
-[assembly: System.Reflection.AssemblyVersion("1.0.0.0")]
-[assembly: System.Reflection.AssemblyFileVersion("1.0.0.0")]
+[assembly: System.Reflection.AssemblyVersion("1.2.0.0")]
+[assembly: System.Reflection.AssemblyFileVersion("1.2.0.0")]
 
 namespace LiceAIDashboard
 {
@@ -56,6 +56,20 @@ namespace LiceAIDashboard
         public bool online;
     }
 
+    internal sealed class PurityCacheEntry
+    {
+        public DateTime checked_at;
+        public string response_json;
+    }
+
+    internal sealed class PurityResult
+    {
+        public int score;
+        public string grade;
+        public string recommendation;
+        public string detail;
+    }
+
     internal sealed class DashboardForm : Form
     {
         private static readonly Color Bg = Color.FromArgb(11, 13, 18);
@@ -71,6 +85,7 @@ namespace LiceAIDashboard
         private readonly string configPath;
         private readonly string historyPath;
         private readonly string statusPath;
+        private readonly string purityCachePath;
         private readonly JavaScriptSerializer json = new JavaScriptSerializer();
         private readonly NotifyIcon tray;
         private readonly Timer refreshTimer;
@@ -87,6 +102,9 @@ namespace LiceAIDashboard
         private Label vpnValue;
         private Label vpnMeta;
         private Label vpnHistory;
+        private Label purityValue;
+        private Label aiRecommendation;
+        private Label purityMeta;
         private Label healthMeta;
         private Label updated;
         private CheckBox autoStartToggle;
@@ -101,6 +119,7 @@ namespace LiceAIDashboard
             configPath = Path.Combine(appDir, "config-exe.json");
             historyPath = Path.Combine(appDir, "vpn-history-exe.jsonl");
             statusPath = Path.Combine(appDir, "last-status.json");
+            purityCachePath = Path.Combine(appDir, "purity-cache.json");
             Directory.CreateDirectory(appDir);
             config = LoadConfig();
 
@@ -246,13 +265,20 @@ namespace LiceAIDashboard
             body.Controls.Add(weekly);
             weekly.Dock = DockStyle.Top;
 
-            var vpn = NewCard(174);
+            var vpn = NewCard(252);
             vpn.Controls.Add(NewLabel("VPN / 网络节点", 14, 10, 240, 24, 11, true, TextColor));
             vpnValue = NewLabel("正在检测…", 14, 40, 330, 30, 17, true, TextColor);
             vpn.Controls.Add(vpnValue);
             vpnMeta = NewLabel("", 14, 73, 336, 20, 9, false, Muted);
             vpn.Controls.Add(vpnMeta);
-            vpnHistory = NewLabel("", 14, 98, 336, 66, 9, false, Muted);
+            purityValue = NewLabel("纯净度：检测中…", 14, 100, 190, 25, 12, true, Muted);
+            vpn.Controls.Add(purityValue);
+            aiRecommendation = NewLabel("AI 推荐：检测中…", 205, 100, 145, 25, 11, true, Muted);
+            vpn.Controls.Add(aiRecommendation);
+            purityMeta = NewLabel("", 14, 127, 336, 38, 9, false, Muted);
+            purityMeta.AutoEllipsis = true;
+            vpn.Controls.Add(purityMeta);
+            vpnHistory = NewLabel("", 14, 171, 336, 69, 9, false, Muted);
             vpnHistory.AutoEllipsis = true;
             vpn.Controls.Add(vpnHistory);
             body.Controls.Add(vpn);
@@ -438,8 +464,16 @@ namespace LiceAIDashboard
                 vpnHistory.Text = BuildHistorySummary();
 
                 var healthLines = healthTask.Result;
+                bool allAiServicesReachable = healthLines.All(line => line.Contains("正常"));
+                var purity = await Task.Run(() => ReadPurity(network.Item2, allAiServicesReachable));
+                purityValue.Text = "纯净度：" + purity.score + "/100 · " + purity.grade;
+                purityValue.ForeColor = purity.score >= 80 ? Green : purity.score >= 60 ? Yellow : Red;
+                aiRecommendation.Text = "AI：" + purity.recommendation;
+                aiRecommendation.ForeColor = purity.recommendation == "推荐" ? Green
+                    : purity.recommendation == "谨慎推荐" ? Yellow : Red;
+                purityMeta.Text = purity.detail;
                 healthMeta.Text = String.Join(Environment.NewLine, healthLines);
-                healthMeta.ForeColor = healthLines.All(line => line.Contains("正常")) ? Green : Red;
+                healthMeta.ForeColor = allAiServicesReachable ? Green : Red;
                 updated.Text = "更新于 " + DateTime.Now.ToString("HH:mm:ss");
                 try
                 {
@@ -453,6 +487,10 @@ namespace LiceAIDashboard
                         vpn_label = network.Item1,
                         public_ip = network.Item2,
                         latency_ms = network.Item3,
+                        purity_score = purity.score,
+                        purity_grade = purity.grade,
+                        ai_recommendation = purity.recommendation,
+                        purity_detail = purity.detail,
                         services = healthLines
                     }));
                 }
@@ -572,6 +610,120 @@ namespace LiceAIDashboard
             client.Proxy = WebRequest.DefaultWebProxy;
             client.Headers[HttpRequestHeader.UserAgent] = "Lice-AI-Dashboard/1.0";
             return client;
+        }
+
+        private PurityResult ReadPurity(string ip, bool aiReachable)
+        {
+            if (String.IsNullOrWhiteSpace(ip))
+                return new PurityResult
+                {
+                    score = 0,
+                    grade = "未知",
+                    recommendation = "不推荐",
+                    detail = "未读取到公网 IP，无法评估纯净度"
+                };
+            try
+            {
+                string raw = ReadCachedPurity(ip);
+                if (String.IsNullOrEmpty(raw))
+                {
+                    using (var client = NewWebClient())
+                        raw = client.DownloadString(
+                            "https://reputation.noc.org/api/?ip=" + Uri.EscapeDataString(ip));
+                    SavePurityCache(ip, raw);
+                }
+                var data = json.DeserializeObject(raw) as Dictionary<string, object>;
+                var usage = data.ContainsKey("usage") ? data["usage"] as Dictionary<string, object> : null;
+                var reputation = data.ContainsKey("reputation")
+                    ? data["reputation"] as Dictionary<string, object> : null;
+                var recommendations = data.ContainsKey("recommendations")
+                    ? data["recommendations"] as Dictionary<string, object> : null;
+                int score = 100;
+                var reasons = new List<string>();
+                if (Flag(usage, "is_tor")) { score -= 50; reasons.Add("Tor 出口"); }
+                if (Flag(usage, "is_proxy")) { score -= 30; reasons.Add("代理特征"); }
+                if (Flag(usage, "is_hosting")) { score -= 15; reasons.Add("机房 IP"); }
+                if (usage != null && usage.ContainsKey("is_routable") && !Flag(usage, "is_routable"))
+                { score -= 50; reasons.Add("不可路由"); }
+                ApplyRisk(reputation, "web_spam", "网页垃圾", 15, ref score, reasons);
+                ApplyRisk(reputation, "web_attacks", "攻击记录", 15, ref score, reasons);
+                ApplyRisk(reputation, "botnet", "僵尸网络", 30, ref score, reasons);
+                ApplyRisk(reputation, "email_spam", "邮件垃圾", 10, ref score, reasons);
+                ApplyRisk(reputation, "brute_force", "暴力破解", 10, ref score, reasons);
+                ApplyRisk(reputation, "ddos", "DDoS 记录", 20, ref score, reasons);
+                if (Flag(recommendations, "block_traffic"))
+                { score -= 20; reasons.Add("信誉库建议拦截"); }
+                score = Math.Max(0, Math.Min(100, score));
+                string grade = score >= 90 ? "优秀" : score >= 80 ? "良好"
+                    : score >= 60 ? "一般" : score >= 40 ? "较差" : "高风险";
+                string recommendation = !aiReachable ? "不推荐"
+                    : score >= 80 ? "推荐" : score >= 60 ? "谨慎推荐" : "不推荐";
+                string detail = reasons.Count == 0
+                    ? "未发现公开代理、机房或滥用风险信号"
+                    : "风险信号：" + String.Join("、", reasons.Distinct());
+                return new PurityResult
+                {
+                    score = score,
+                    grade = grade,
+                    recommendation = recommendation,
+                    detail = detail
+                };
+            }
+            catch (Exception ex)
+            {
+                return new PurityResult
+                {
+                    score = 0,
+                    grade = "未知",
+                    recommendation = aiReachable ? "谨慎推荐" : "不推荐",
+                    detail = "信誉接口暂不可用：" + ex.GetType().Name
+                };
+            }
+        }
+
+        private bool Flag(Dictionary<string, object> source, string key)
+        {
+            if (source == null || !source.ContainsKey(key) || source[key] == null) return false;
+            try { return Convert.ToBoolean(source[key]); } catch { return false; }
+        }
+
+        private void ApplyRisk(Dictionary<string, object> source, string key, string label,
+            int penalty, ref int score, List<string> reasons)
+        {
+            if (!Flag(source, key)) return;
+            score -= penalty;
+            reasons.Add(label);
+        }
+
+        private string ReadCachedPurity(string ip)
+        {
+            try
+            {
+                if (!File.Exists(purityCachePath)) return null;
+                var cache = json.Deserialize<Dictionary<string, PurityCacheEntry>>(
+                    File.ReadAllText(purityCachePath));
+                PurityCacheEntry entry;
+                if (cache != null && cache.TryGetValue(ip, out entry)
+                    && DateTime.Now - entry.checked_at < TimeSpan.FromHours(6))
+                    return entry.response_json;
+            }
+            catch { }
+            return null;
+        }
+
+        private void SavePurityCache(string ip, string raw)
+        {
+            try
+            {
+                Dictionary<string, PurityCacheEntry> cache = null;
+                if (File.Exists(purityCachePath))
+                    cache = json.Deserialize<Dictionary<string, PurityCacheEntry>>(
+                        File.ReadAllText(purityCachePath));
+                if (cache == null) cache = new Dictionary<string, PurityCacheEntry>();
+                cache[ip] = new PurityCacheEntry { checked_at = DateTime.Now, response_json = raw };
+                File.WriteAllText(purityCachePath, json.Serialize(cache));
+            }
+            catch { }
         }
 
         private void AddHistory(string ip, string label, double latency, bool online)
