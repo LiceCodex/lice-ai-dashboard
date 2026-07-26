@@ -1,0 +1,9 @@
+dist/
+*.user
+*.suo
+*.pdb
+*.log
+.vs/
+obj/
+bin/
+icon-preview*.png
