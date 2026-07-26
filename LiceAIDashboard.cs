@@ -226,8 +226,8 @@ namespace LiceAIDashboard
             Font = new Font("Microsoft YaHei UI", 9F);
             FormBorderStyle = FormBorderStyle.None;
             StartPosition = FormStartPosition.Manual;
-            Size = new Size(410, 640);
-            MinimumSize = new Size(390, 570);
+            Size = new Size(400, 620);
+            MinimumSize = new Size(380, 560);
             TopMost = true;
             DoubleBuffered = true;
             ShowInTaskbar = false;
@@ -305,23 +305,27 @@ namespace LiceAIDashboard
 
         private void BuildUi()
         {
-            var header = new Panel { Dock = DockStyle.Top, Height = 68, BackColor = Bg };
+            var header = new Panel { Dock = DockStyle.Top, Height = 64, BackColor = Bg };
             Controls.Add(header);
             var logo = new PictureBox
             {
-                Image = BuildLogo(36),
+                Image = BuildLogo(34),
                 SizeMode = PictureBoxSizeMode.StretchImage,
-                Bounds = new Rectangle(16, 16, 36, 36),
+                Bounds = new Rectangle(16, 15, 34, 34),
                 BackColor = Bg
             };
             header.Controls.Add(logo);
-            header.Controls.Add(NewLabel("Lice AI Dashboard", 60, 14, 215, 26, 16, true, TextColor));
-            header.Controls.Add(NewLabel("Windows 桌面状态中心", 61, 38, 190, 16, 7.5F, false, Muted));
+            var appTitle = NewLabel("Lice AI Dashboard", 60, 12, 210, 25, 15, true, TextColor);
+            appTitle.BackColor = Bg;
+            header.Controls.Add(appTitle);
+            var appSubtitle = NewLabel("AI 与网络状态", 61, 36, 150, 16, 8, false, Muted);
+            appSubtitle.BackColor = Bg;
+            header.Controls.Add(appSubtitle);
 
-            var settingsButton = NewButton("设置", 288, 18, 54, 32);
+            var settingsButton = NewButton("设置", 284, 16, 52, 30);
             settingsButton.Click += delegate { settingsPanel.Visible = !settingsPanel.Visible; };
             header.Controls.Add(settingsButton);
-            var hideButton = NewButton("—", 348, 18, 42, 32);
+            var hideButton = NewButton("—", 342, 16, 40, 30);
             hideButton.Click += delegate { HideToTray(); };
             header.Controls.Add(hideButton);
 
@@ -329,7 +333,7 @@ namespace LiceAIDashboard
             {
                 Dock = DockStyle.Fill,
                 AutoScroll = true,
-                Padding = new Padding(14, 3, 14, 10),
+                Padding = new Padding(14, 2, 14, 8),
                 BackColor = Bg,
                 FlowDirection = FlowDirection.TopDown,
                 WrapContents = false
@@ -337,16 +341,16 @@ namespace LiceAIDashboard
             Controls.Add(body);
             body.BringToFront();
 
-            settingsPanel = NewCard(108);
+            settingsPanel = NewCard(100);
             settingsPanel.Visible = false;
-            settingsPanel.Controls.Add(NewLabel("启动与托盘", 18, 13, 220, 24, 11, true, TextColor));
+            settingsPanel.Controls.Add(NewLabel("启动与托盘", 16, 10, 220, 22, 10, true, TextColor));
             autoStartToggle = new CheckBox
             {
                 Text = "登录 Windows 后自动启动",
                 ForeColor = TextColor,
                 BackColor = Card,
                 AutoSize = true,
-                Location = new Point(20, 45),
+                Location = new Point(18, 40),
                 Checked = IsAutoStartEnabled()
             };
             autoStartToggle.CheckedChanged += delegate
@@ -356,50 +360,51 @@ namespace LiceAIDashboard
                 ApplyAutoStart(autoStartToggle.Checked);
             };
             settingsPanel.Controls.Add(autoStartToggle);
-            settingsPanel.Controls.Add(NewLabel("托盘悬停展开，移开后自动收起", 20, 74, 310, 20, 9, false, Muted));
+            settingsPanel.Controls.Add(NewLabel("托盘悬停展开，移开后自动收起", 18, 68, 310, 18, 8.5F, false, Muted));
             body.Controls.Add(settingsPanel);
 
-            var weekly = NewCard(126);
-            weekly.Controls.Add(NewLabel("Codex 周额度", 18, 13, 240, 24, 10.5F, true, TextColor));
-            weeklyValue = NewLabel("正在读取…", 18, 42, 320, 32, 22, true, TextColor);
+            var weekly = NewCard(112);
+            weekly.Controls.Add(NewLabel("CODEX 周额度", 16, 10, 240, 21, 9, true, Muted));
+            weeklyValue = NewLabel("正在读取…", 16, 32, 320, 32, 20, true, TextColor);
             weekly.Controls.Add(weeklyValue);
-            var barBg = new Panel { BackColor = Color.FromArgb(62, 75, 105), Bounds = new Rectangle(18, 82, 346, 7) };
-            weeklyProgress = new Panel { BackColor = Accent, Bounds = new Rectangle(0, 0, 0, 8) };
+            var barBg = new Panel { BackColor = Color.FromArgb(53, 58, 69), Bounds = new Rectangle(16, 70, 324, 6) };
+            weeklyProgress = new Panel { BackColor = Accent, Bounds = new Rectangle(0, 0, 0, 6) };
             barBg.Controls.Add(weeklyProgress);
             weekly.Controls.Add(barBg);
-            weeklyMeta = NewLabel("刷新时间未知", 18, 96, 346, 20, 8.5F, false, Muted);
+            weeklyMeta = NewLabel("刷新时间未知", 16, 82, 324, 18, 8, false, Muted);
             weekly.Controls.Add(weeklyMeta);
             body.Controls.Add(weekly);
 
-            var vpn = NewCard(264);
-            vpn.Controls.Add(NewLabel("VPN / 网络节点", 18, 13, 230, 24, 10.5F, true, TextColor));
-            networkRefreshButton = NewButton("↻  刷新节点", 268, 10, 96, 32);
+            var vpn = NewCard(238);
+            vpn.Controls.Add(NewLabel("VPN / 网络节点", 16, 10, 220, 22, 10, true, TextColor));
+            networkRefreshButton = NewButton("↻  刷新", 270, 8, 70, 28);
             networkRefreshButton.Click += async delegate { await RefreshNetworkData(true); };
             vpn.Controls.Add(networkRefreshButton);
-            vpnValue = NewLabel("正在检测…", 18, 49, 346, 31, 17, true, TextColor);
+            vpnValue = NewLabel("正在检测…", 16, 43, 324, 30, 16, true, TextColor);
             vpn.Controls.Add(vpnValue);
-            vpnMeta = NewLabel("", 18, 80, 346, 20, 9, false, Muted);
+            vpnMeta = NewLabel("", 16, 72, 324, 18, 8.5F, false, Muted);
             vpn.Controls.Add(vpnMeta);
-            purityValue = NewLabel("纯净度：检测中…", 18, 109, 195, 25, 12, true, Muted);
+            purityValue = NewLabel("纯净度：检测中…", 16, 99, 188, 23, 10.5F, true, Muted);
             vpn.Controls.Add(purityValue);
-            aiRecommendation = NewLabel("AI 推荐：检测中…", 213, 109, 151, 25, 11, true, Muted);
+            aiRecommendation = NewLabel("AI：检测中…", 204, 99, 136, 23, 10, true, Muted);
             vpn.Controls.Add(aiRecommendation);
-            purityMeta = NewLabel("", 18, 138, 346, 38, 9, false, Muted);
+            purityMeta = NewLabel("", 16, 126, 324, 32, 8.5F, false, Muted);
             purityMeta.AutoEllipsis = true;
             vpn.Controls.Add(purityMeta);
-            vpnHistory = NewLabel("", 18, 184, 346, 67, 8.5F, false, Muted);
+            vpnHistory = NewLabel("", 16, 166, 324, 60, 8, false, Muted);
             vpnHistory.AutoEllipsis = true;
             vpn.Controls.Add(vpnHistory);
             body.Controls.Add(vpn);
 
-            var health = NewCard(126);
-            health.Controls.Add(NewLabel("服务状态", 18, 13, 260, 24, 10.5F, true, TextColor));
-            healthMeta = NewLabel("正在检测…", 18, 43, 346, 72, 9, false, Muted);
+            var health = NewCard(108);
+            health.Controls.Add(NewLabel("服务状态", 16, 10, 250, 22, 10, true, TextColor));
+            healthMeta = NewLabel("正在检测…", 16, 37, 324, 60, 8.5F, false, Muted);
             health.Controls.Add(healthMeta);
             body.Controls.Add(health);
 
-            var footer = new Panel { Dock = DockStyle.Bottom, Height = 32, BackColor = Bg };
-            updated = NewLabel("", 18, 7, 250, 18, 8, false, Muted);
+            var footer = new Panel { Dock = DockStyle.Bottom, Height = 28, BackColor = Bg };
+            updated = NewLabel("", 16, 5, 250, 18, 7.5F, false, Muted);
+            updated.BackColor = Bg;
             footer.Controls.Add(updated);
             Controls.Add(footer);
             footer.BringToFront();
@@ -410,7 +415,7 @@ namespace LiceAIDashboard
             return new GlassPanel
             {
                 Height = height,
-                Width = 366,
+                Width = 346,
                 Dock = DockStyle.None,
                 Margin = new Padding(0, 0, 0, 12),
                 Padding = new Padding(0)
@@ -424,7 +429,7 @@ namespace LiceAIDashboard
                 Text = text,
                 Bounds = new Rectangle(x, y, w, h),
                 ForeColor = color,
-                BackColor = Color.FromArgb(48, 54, 66),
+                BackColor = Card,
                 Font = new Font("Microsoft YaHei UI", size, bold ? FontStyle.Bold : FontStyle.Regular),
                 TextAlign = ContentAlignment.MiddleLeft
             };
@@ -547,7 +552,7 @@ namespace LiceAIDashboard
                 {
                     weeklyValue.Text = Math.Round(remaining) + "% 剩余";
                     weeklyValue.ForeColor = TextColor;
-                    weeklyProgress.Width = (int)(346 * remaining / 100.0);
+                    weeklyProgress.Width = (int)(324 * remaining / 100.0);
                 }
                 else
                 {
@@ -567,12 +572,7 @@ namespace LiceAIDashboard
                 var healthLines = healthTask.Result;
                 bool allAiServicesReachable = healthLines.All(line => line.Contains("正常"));
                 var purity = await Task.Run(() => ReadPurity(network.Item2, allAiServicesReachable));
-                purityValue.Text = "纯净度：" + purity.score + "/100 · " + purity.grade;
-                purityValue.ForeColor = purity.score >= 80 ? Green : purity.score >= 60 ? Yellow : Red;
-                aiRecommendation.Text = "AI：" + purity.recommendation;
-                aiRecommendation.ForeColor = purity.recommendation == "推荐" ? Green
-                    : purity.recommendation == "谨慎推荐" ? Yellow : Red;
-                purityMeta.Text = purity.detail;
+                ApplyPurityDisplay(purity);
                 healthMeta.Text = String.Join(Environment.NewLine, healthLines);
                 healthMeta.ForeColor = allAiServicesReachable ? Green : Red;
                 updated.Text = "更新于 " + DateTime.Now.ToString("HH:mm:ss");
@@ -627,22 +627,32 @@ namespace LiceAIDashboard
                     (String.IsNullOrEmpty(network.Item2) ? "读取失败" : network.Item2);
                 AddHistory(network.Item2, network.Item1, network.Item3, network.Item4);
                 vpnHistory.Text = BuildHistorySummary();
-                purityValue.Text = "纯净度：" + purity.score + "/100 · " + purity.grade;
-                purityValue.ForeColor = purity.score >= 80 ? Green : purity.score >= 60 ? Yellow : Red;
-                aiRecommendation.Text = "AI：" + purity.recommendation;
-                aiRecommendation.ForeColor = purity.recommendation == "推荐" ? Green
-                    : purity.recommendation == "谨慎推荐" ? Yellow : Red;
-                purityMeta.Text = purity.detail;
+                ApplyPurityDisplay(purity);
                 healthMeta.Text = String.Join(Environment.NewLine, healthLines);
                 healthMeta.ForeColor = allAiServicesReachable ? Green : Red;
                 updated.Text = "节点更新于 " + DateTime.Now.ToString("HH:mm:ss");
             }
             finally
             {
-                networkRefreshButton.Text = "↻  刷新节点";
+                networkRefreshButton.Text = "↻  刷新";
                 networkRefreshButton.Enabled = true;
                 refreshing = false;
             }
+        }
+
+        private void ApplyPurityDisplay(PurityResult purity)
+        {
+            bool unavailable = purity == null || purity.grade == "未知";
+            purityValue.Text = unavailable
+                ? "纯净度：暂不可用"
+                : "纯净度：" + purity.score + "/100 · " + purity.grade;
+            purityValue.ForeColor = unavailable ? Muted
+                : purity.score >= 80 ? Green : purity.score >= 60 ? Yellow : Red;
+            aiRecommendation.Text = unavailable ? "AI：待确认" : "AI：" + purity.recommendation;
+            aiRecommendation.ForeColor = unavailable ? Muted
+                : purity.recommendation == "推荐" ? Green
+                : purity.recommendation == "谨慎推荐" ? Yellow : Red;
+            purityMeta.Text = purity == null ? "纯净度服务暂不可用" : purity.detail;
         }
 
         private Tuple<double, string, string> ReadWeeklyUsage()
