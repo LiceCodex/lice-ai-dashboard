@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
@@ -17,8 +18,8 @@ using Microsoft.Win32;
 [assembly: System.Reflection.AssemblyDescription("Codex usage and network tray dashboard")]
 [assembly: System.Reflection.AssemblyCompany("Lice")]
 [assembly: System.Reflection.AssemblyProduct("Lice AI Dashboard")]
-[assembly: System.Reflection.AssemblyVersion("1.2.0.0")]
-[assembly: System.Reflection.AssemblyFileVersion("1.2.0.0")]
+[assembly: System.Reflection.AssemblyVersion("1.3.0.0")]
+[assembly: System.Reflection.AssemblyFileVersion("1.3.0.0")]
 
 namespace LiceAIDashboard
 {
@@ -70,16 +71,117 @@ namespace LiceAIDashboard
         public string detail;
     }
 
+    internal sealed class GlassPanel : Panel
+    {
+        public int Radius { get; set; }
+        public Color GlassTop { get; set; }
+        public Color GlassBottom { get; set; }
+        public Color BorderColor { get; set; }
+
+        public GlassPanel()
+        {
+            Radius = 22;
+            GlassTop = Color.FromArgb(178, 35, 43, 66);
+            GlassBottom = Color.FromArgb(166, 20, 25, 42);
+            BorderColor = Color.FromArgb(88, 255, 255, 255);
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
+                ControlStyles.OptimizedDoubleBuffer | ControlStyles.SupportsTransparentBackColor, true);
+            BackColor = Color.Transparent;
+        }
+
+        protected override void OnSizeChanged(EventArgs e)
+        {
+            base.OnSizeChanged(e);
+            using (var path = RoundedPath(new Rectangle(0, 0, Width, Height), Radius))
+                Region = new Region(path);
+        }
+
+        protected override void OnPaintBackground(PaintEventArgs e)
+        {
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            var rect = new Rectangle(0, 0, Math.Max(1, Width - 1), Math.Max(1, Height - 1));
+            using (var path = RoundedPath(rect, Radius))
+            using (var brush = new LinearGradientBrush(rect, GlassTop, GlassBottom, 115F))
+                e.Graphics.FillPath(brush, path);
+            using (var glow = new LinearGradientBrush(
+                new Rectangle(0, 0, Math.Max(1, Width), Math.Max(1, Height / 2)),
+                Color.FromArgb(48, 255, 255, 255), Color.FromArgb(0, 255, 255, 255), 90F))
+            using (var path = RoundedPath(rect, Radius))
+                e.Graphics.FillPath(glow, path);
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            using (var path = RoundedPath(new Rectangle(0, 0, Width - 1, Height - 1), Radius))
+            using (var pen = new Pen(BorderColor, 1F))
+                e.Graphics.DrawPath(pen, path);
+        }
+
+        internal static GraphicsPath RoundedPath(Rectangle rect, int radius)
+        {
+            var path = new GraphicsPath();
+            int diameter = Math.Max(2, radius * 2);
+            var arc = new Rectangle(rect.X, rect.Y, diameter, diameter);
+            path.AddArc(arc, 180, 90);
+            arc.X = rect.Right - diameter;
+            path.AddArc(arc, 270, 90);
+            arc.Y = rect.Bottom - diameter;
+            path.AddArc(arc, 0, 90);
+            arc.X = rect.Left;
+            path.AddArc(arc, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+    }
+
+    internal sealed class GlassButton : Button
+    {
+        public int Radius { get; set; }
+
+        public GlassButton()
+        {
+            Radius = 15;
+            FlatStyle = FlatStyle.Flat;
+            FlatAppearance.BorderSize = 0;
+            Cursor = Cursors.Hand;
+            TabStop = false;
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
+                ControlStyles.OptimizedDoubleBuffer, true);
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            var rect = new Rectangle(0, 0, Width - 1, Height - 1);
+            using (var path = GlassPanel.RoundedPath(rect, Radius))
+            using (var brush = new LinearGradientBrush(rect,
+                Enabled ? Color.FromArgb(95, 255, 255, 255) : Color.FromArgb(35, 255, 255, 255),
+                Enabled ? Color.FromArgb(44, 255, 255, 255) : Color.FromArgb(22, 255, 255, 255), 90F))
+            using (var pen = new Pen(Color.FromArgb(96, 255, 255, 255)))
+            {
+                e.Graphics.FillPath(brush, path);
+                e.Graphics.DrawPath(pen, path);
+            }
+            TextRenderer.DrawText(e.Graphics, Text, Font, rect,
+                Enabled ? ForeColor : Color.FromArgb(130, ForeColor),
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter |
+                TextFormatFlags.EndEllipsis);
+        }
+    }
+
     internal sealed class DashboardForm : Form
     {
-        private static readonly Color Bg = Color.FromArgb(11, 13, 18);
-        private static readonly Color Card = Color.FromArgb(21, 24, 33);
-        private static readonly Color TextColor = Color.FromArgb(244, 245, 247);
-        private static readonly Color Muted = Color.FromArgb(141, 148, 163);
-        private static readonly Color Green = Color.FromArgb(67, 209, 123);
-        private static readonly Color Yellow = Color.FromArgb(255, 202, 92);
-        private static readonly Color Red = Color.FromArgb(255, 105, 120);
-        private static readonly Color Accent = Color.FromArgb(124, 140, 255);
+        private static readonly Color Bg = Color.FromArgb(8, 12, 27);
+        private static readonly Color Card = Color.FromArgb(28, 35, 56);
+        private static readonly Color TextColor = Color.FromArgb(248, 250, 255);
+        private static readonly Color Muted = Color.FromArgb(169, 180, 205);
+        private static readonly Color Green = Color.FromArgb(92, 238, 180);
+        private static readonly Color Yellow = Color.FromArgb(255, 211, 112);
+        private static readonly Color Red = Color.FromArgb(255, 118, 144);
+        private static readonly Color Accent = Color.FromArgb(111, 151, 255);
+        private static readonly Color Cyan = Color.FromArgb(91, 224, 255);
 
         private readonly string appDir;
         private readonly string configPath;
@@ -109,6 +211,7 @@ namespace LiceAIDashboard
         private Label updated;
         private CheckBox autoStartToggle;
         private Panel settingsPanel;
+        private Button networkRefreshButton;
 
         public DashboardForm(bool startHidden)
         {
@@ -129,8 +232,8 @@ namespace LiceAIDashboard
             Font = new Font("Microsoft YaHei UI", 9F);
             FormBorderStyle = FormBorderStyle.None;
             StartPosition = FormStartPosition.Manual;
-            Size = new Size(396, 610);
-            MinimumSize = new Size(370, 540);
+            Size = new Size(410, 640);
+            MinimumSize = new Size(390, 570);
             TopMost = true;
             DoubleBuffered = true;
             ShowInTaskbar = false;
@@ -200,45 +303,61 @@ namespace LiceAIDashboard
 
         protected override void OnPaint(PaintEventArgs e)
         {
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            using (var background = new LinearGradientBrush(
+                ClientRectangle, Color.FromArgb(17, 25, 54), Color.FromArgb(7, 10, 23), 125F))
+                e.Graphics.FillRectangle(background, ClientRectangle);
+            using (var blueGlow = new SolidBrush(Color.FromArgb(48, 81, 128, 255)))
+                e.Graphics.FillEllipse(blueGlow, Width - 245, -135, 330, 300);
+            using (var cyanGlow = new SolidBrush(Color.FromArgb(30, 73, 228, 218)))
+                e.Graphics.FillEllipse(cyanGlow, -165, Height - 250, 310, 300);
+            using (var border = new Pen(Color.FromArgb(82, 255, 255, 255)))
+                e.Graphics.DrawRectangle(border, 0, 0, Width - 1, Height - 1);
             base.OnPaint(e);
-            using (var pen = new Pen(Color.FromArgb(45, 49, 62)))
-                e.Graphics.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
         }
 
         private void BuildUi()
         {
-            var header = new Panel { Dock = DockStyle.Top, Height = 58, BackColor = Bg };
+            var header = new Panel { Dock = DockStyle.Top, Height = 68, BackColor = Color.Transparent };
             Controls.Add(header);
             var logo = new PictureBox
             {
-                Image = BuildLogo(32),
+                Image = BuildLogo(36),
                 SizeMode = PictureBoxSizeMode.StretchImage,
-                Bounds = new Rectangle(14, 13, 32, 32)
+                Bounds = new Rectangle(16, 16, 36, 36),
+                BackColor = Color.Transparent
             };
             header.Controls.Add(logo);
-            header.Controls.Add(NewLabel("Lice AI Dashboard", 52, 16, 210, 28, 16, true, TextColor));
+            header.Controls.Add(NewLabel("Lice AI Dashboard", 60, 14, 215, 26, 16, true, TextColor));
+            header.Controls.Add(NewLabel("AI & NETWORK GLASS", 61, 38, 190, 16, 7.5F, false, Cyan));
 
-            var settingsButton = NewButton("设置", 278, 14, 50, 30);
+            var settingsButton = NewButton("设置", 288, 18, 54, 32);
             settingsButton.Click += delegate { settingsPanel.Visible = !settingsPanel.Visible; };
             header.Controls.Add(settingsButton);
-            var hideButton = NewButton("—", 334, 14, 42, 30);
+            var hideButton = NewButton("—", 348, 18, 42, 32);
             hideButton.Click += delegate { HideToTray(); };
             header.Controls.Add(hideButton);
 
-            var body = new Panel { Dock = DockStyle.Fill, AutoScroll = true, Padding = new Padding(12, 2, 12, 8) };
+            var body = new Panel
+            {
+                Dock = DockStyle.Fill,
+                AutoScroll = true,
+                Padding = new Padding(14, 3, 14, 10),
+                BackColor = Color.Transparent
+            };
             Controls.Add(body);
             body.BringToFront();
 
-            settingsPanel = NewCard(104);
+            settingsPanel = NewCard(108);
             settingsPanel.Visible = false;
-            settingsPanel.Controls.Add(NewLabel("启动与托盘", 14, 10, 220, 24, 11, true, TextColor));
+            settingsPanel.Controls.Add(NewLabel("启动与托盘", 18, 13, 220, 24, 11, true, TextColor));
             autoStartToggle = new CheckBox
             {
                 Text = "登录 Windows 后自动启动",
                 ForeColor = TextColor,
-                BackColor = Card,
+                BackColor = Color.Transparent,
                 AutoSize = true,
-                Location = new Point(16, 43),
+                Location = new Point(20, 45),
                 Checked = IsAutoStartEnabled()
             };
             autoStartToggle.CheckedChanged += delegate
@@ -248,45 +367,48 @@ namespace LiceAIDashboard
                 ApplyAutoStart(autoStartToggle.Checked);
             };
             settingsPanel.Controls.Add(autoStartToggle);
-            settingsPanel.Controls.Add(NewLabel("托盘悬停展开，移开后自动收起", 16, 70, 300, 20, 9, false, Muted));
+            settingsPanel.Controls.Add(NewLabel("托盘悬停展开，移开后自动收起", 20, 74, 310, 20, 9, false, Muted));
             body.Controls.Add(settingsPanel);
             settingsPanel.Dock = DockStyle.Top;
 
-            var weekly = NewCard(122);
-            weekly.Controls.Add(NewLabel("Codex 周额度", 14, 10, 220, 24, 11, true, TextColor));
-            weeklyValue = NewLabel("正在读取…", 14, 39, 320, 32, 21, true, TextColor);
+            var weekly = NewCard(126);
+            weekly.Controls.Add(NewLabel("CODEX · 周额度", 18, 13, 240, 24, 10.5F, true, TextColor));
+            weeklyValue = NewLabel("正在读取…", 18, 42, 320, 32, 22, true, TextColor);
             weekly.Controls.Add(weeklyValue);
-            var barBg = new Panel { BackColor = Color.FromArgb(39, 43, 55), Bounds = new Rectangle(14, 78, 336, 8) };
+            var barBg = new Panel { BackColor = Color.FromArgb(62, 75, 105), Bounds = new Rectangle(18, 82, 346, 7) };
             weeklyProgress = new Panel { BackColor = Accent, Bounds = new Rectangle(0, 0, 0, 8) };
             barBg.Controls.Add(weeklyProgress);
             weekly.Controls.Add(barBg);
-            weeklyMeta = NewLabel("刷新时间未知", 14, 92, 338, 20, 9, false, Muted);
+            weeklyMeta = NewLabel("刷新时间未知", 18, 96, 346, 20, 8.5F, false, Muted);
             weekly.Controls.Add(weeklyMeta);
             body.Controls.Add(weekly);
             weekly.Dock = DockStyle.Top;
 
-            var vpn = NewCard(252);
-            vpn.Controls.Add(NewLabel("VPN / 网络节点", 14, 10, 240, 24, 11, true, TextColor));
-            vpnValue = NewLabel("正在检测…", 14, 40, 330, 30, 17, true, TextColor);
+            var vpn = NewCard(264);
+            vpn.Controls.Add(NewLabel("NETWORK · 网络节点", 18, 13, 230, 24, 10.5F, true, TextColor));
+            networkRefreshButton = NewButton("↻  刷新节点", 268, 10, 96, 32);
+            networkRefreshButton.Click += async delegate { await RefreshNetworkData(true); };
+            vpn.Controls.Add(networkRefreshButton);
+            vpnValue = NewLabel("正在检测…", 18, 49, 346, 31, 17, true, TextColor);
             vpn.Controls.Add(vpnValue);
-            vpnMeta = NewLabel("", 14, 73, 336, 20, 9, false, Muted);
+            vpnMeta = NewLabel("", 18, 80, 346, 20, 9, false, Muted);
             vpn.Controls.Add(vpnMeta);
-            purityValue = NewLabel("纯净度：检测中…", 14, 100, 190, 25, 12, true, Muted);
+            purityValue = NewLabel("纯净度：检测中…", 18, 109, 195, 25, 12, true, Muted);
             vpn.Controls.Add(purityValue);
-            aiRecommendation = NewLabel("AI 推荐：检测中…", 205, 100, 145, 25, 11, true, Muted);
+            aiRecommendation = NewLabel("AI 推荐：检测中…", 213, 109, 151, 25, 11, true, Muted);
             vpn.Controls.Add(aiRecommendation);
-            purityMeta = NewLabel("", 14, 127, 336, 38, 9, false, Muted);
+            purityMeta = NewLabel("", 18, 138, 346, 38, 9, false, Muted);
             purityMeta.AutoEllipsis = true;
             vpn.Controls.Add(purityMeta);
-            vpnHistory = NewLabel("", 14, 171, 336, 69, 9, false, Muted);
+            vpnHistory = NewLabel("", 18, 184, 346, 67, 8.5F, false, Muted);
             vpnHistory.AutoEllipsis = true;
             vpn.Controls.Add(vpnHistory);
             body.Controls.Add(vpn);
             vpn.Dock = DockStyle.Top;
 
-            var health = NewCard(122);
-            health.Controls.Add(NewLabel("服务状态", 14, 10, 240, 24, 11, true, TextColor));
-            healthMeta = NewLabel("正在检测…", 14, 39, 336, 72, 9, false, Muted);
+            var health = NewCard(126);
+            health.Controls.Add(NewLabel("SERVICES · 服务状态", 18, 13, 260, 24, 10.5F, true, TextColor));
+            healthMeta = NewLabel("正在检测…", 18, 43, 346, 72, 9, false, Muted);
             health.Controls.Add(healthMeta);
             body.Controls.Add(health);
             health.Dock = DockStyle.Top;
@@ -295,8 +417,8 @@ namespace LiceAIDashboard
             body.Controls.SetChildIndex(vpn, 2);
             body.Controls.SetChildIndex(health, 3);
 
-            var footer = new Panel { Dock = DockStyle.Bottom, Height = 30, BackColor = Bg };
-            updated = NewLabel("", 16, 7, 220, 18, 8, false, Muted);
+            var footer = new Panel { Dock = DockStyle.Bottom, Height = 32, BackColor = Color.Transparent };
+            updated = NewLabel("", 18, 7, 250, 18, 8, false, Muted);
             footer.Controls.Add(updated);
             Controls.Add(footer);
             footer.BringToFront();
@@ -304,12 +426,11 @@ namespace LiceAIDashboard
 
         private Panel NewCard(int height)
         {
-            return new Panel
+            return new GlassPanel
             {
-                BackColor = Card,
                 Height = height,
                 Dock = DockStyle.Top,
-                Margin = new Padding(0, 0, 0, 10),
+                Margin = new Padding(0, 0, 0, 12),
                 Padding = new Padding(0)
             };
         }
@@ -329,15 +450,13 @@ namespace LiceAIDashboard
 
         private Button NewButton(string text, int x, int y, int w, int h)
         {
-            return new Button
+            return new GlassButton
             {
                 Text = text,
                 Bounds = new Rectangle(x, y, w, h),
-                FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(34, 38, 51),
+                BackColor = Color.Transparent,
                 ForeColor = TextColor,
-                Cursor = Cursors.Hand,
-                TabStop = false
+                Font = new Font("Microsoft YaHei UI", 8.5F, FontStyle.Regular)
             };
         }
 
@@ -446,7 +565,7 @@ namespace LiceAIDashboard
                 {
                     weeklyValue.Text = Math.Round(remaining) + "% 剩余";
                     weeklyValue.ForeColor = TextColor;
-                    weeklyProgress.Width = (int)(336 * remaining / 100.0);
+                    weeklyProgress.Width = (int)(346 * remaining / 100.0);
                 }
                 else
                 {
@@ -497,6 +616,51 @@ namespace LiceAIDashboard
                 catch { }
             }
             finally { refreshing = false; }
+        }
+
+        private async Task RefreshNetworkData(bool forcePurityRefresh)
+        {
+            if (refreshing) return;
+            refreshing = true;
+            networkRefreshButton.Enabled = false;
+            networkRefreshButton.Text = "刷新中…";
+            vpnValue.Text = "正在识别新节点…";
+            vpnValue.ForeColor = Muted;
+            try
+            {
+                var networkTask = Task.Run(() => ReadNetwork());
+                var healthTask = Task.Run(() => ReadHealth());
+                await Task.WhenAll(networkTask, healthTask);
+
+                var network = networkTask.Result;
+                var healthLines = healthTask.Result;
+                bool allAiServicesReachable = healthLines.All(line => line.Contains("正常"));
+                var purity = await Task.Run(() =>
+                    ReadPurity(network.Item2, allAiServicesReachable, forcePurityRefresh));
+
+                vpnValue.Text = network.Item1 + "  ·  " +
+                    (network.Item3 >= 0 ? Math.Round(network.Item3) + " ms" : "离线");
+                vpnValue.ForeColor = network.Item4 ? Green : Red;
+                vpnMeta.Text = "公网 IP：" +
+                    (String.IsNullOrEmpty(network.Item2) ? "读取失败" : network.Item2);
+                AddHistory(network.Item2, network.Item1, network.Item3, network.Item4);
+                vpnHistory.Text = BuildHistorySummary();
+                purityValue.Text = "纯净度：" + purity.score + "/100 · " + purity.grade;
+                purityValue.ForeColor = purity.score >= 80 ? Green : purity.score >= 60 ? Yellow : Red;
+                aiRecommendation.Text = "AI：" + purity.recommendation;
+                aiRecommendation.ForeColor = purity.recommendation == "推荐" ? Green
+                    : purity.recommendation == "谨慎推荐" ? Yellow : Red;
+                purityMeta.Text = purity.detail;
+                healthMeta.Text = String.Join(Environment.NewLine, healthLines);
+                healthMeta.ForeColor = allAiServicesReachable ? Green : Red;
+                updated.Text = "节点更新于 " + DateTime.Now.ToString("HH:mm:ss");
+            }
+            finally
+            {
+                networkRefreshButton.Text = "↻  刷新节点";
+                networkRefreshButton.Enabled = true;
+                refreshing = false;
+            }
         }
 
         private Tuple<double, string, string> ReadWeeklyUsage()
@@ -612,7 +776,7 @@ namespace LiceAIDashboard
             return client;
         }
 
-        private PurityResult ReadPurity(string ip, bool aiReachable)
+        private PurityResult ReadPurity(string ip, bool aiReachable, bool forceRefresh = false)
         {
             if (String.IsNullOrWhiteSpace(ip))
                 return new PurityResult
@@ -624,7 +788,7 @@ namespace LiceAIDashboard
                 };
             try
             {
-                string raw = ReadCachedPurity(ip);
+                string raw = forceRefresh ? null : ReadCachedPurity(ip);
                 if (String.IsNullOrEmpty(raw))
                 {
                     using (var client = NewWebClient())
